@@ -1,43 +1,35 @@
 #!/usr/bin/env python3
-""" Module for caching web page responses and
-    tracking URL access counts using Redis """
+"""Defines a method that implements an expiring web cache and tracker."""
+
+from typing import Callable
+from functools import wraps
 import redis
 import requests
-from functools import wraps
-from typing import Callable
 
 
-r = redis.Redis()
+def requests_counter(method: Callable) -> Callable:
+    """ Counts how many times a requesthas been made
+    """
+    r = redis.Redis()
 
-
-def url_count(method: Callable) -> Callable:
-    """ decorator to c track how many times a particular URL
-        was accessed in the key "count:{url}" """
     @wraps(method)
     def wrapper(url):
-        """ wrapper that incrments the count in Redis """
-        r.incr("count:{}".format(url))
-        r.set(f"count:{url}", 1)
-        return method(url)
+        """ wrapper fxn that counts actual no of requests made"""
+        r.incr(f"count:{url}")
+        cached_ = r.get(f"cached:{url}")
+        if cached:
+            return cached.decode('utf-8')
+
+        html = method(url)
+        r.setex(f"cached:{url}", 10, html)
+        return html
+
     return wrapper
 
 
-@url_count
+@requests_counter
 def get_page(url: str) -> str:
-    """ function that returns the HTML content of a particular URL """
-
-    # Return the cached response from Redis if it exists
-    cached_response = r.get(f"response:{url}")
-    if cached_response:
-        # print("Cache hit")
-        return cached_response.decode('utf-8')
-
-    # Fetch the response if not cached
-    # print("Cache miss")
-    response = requests.get(url)
-
-    # Cache it with an expiration time of 10 seconds
-    key = "response:{}".format(url)
-    r.setex(key, 10, response.text)
-
-    return response.text
+    """ obtains html content for a given site url and returns it..
+    """
+    resp = requests.get(url)
+    return resp.text
