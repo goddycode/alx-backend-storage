@@ -1,24 +1,47 @@
+#!/usr/bin/env python3
+"""
+Provide some stats about Nginx logs stored in MongoDB
+Database: logs, Collection: nginx, Display same as example
+first line: x logs, x number of documents in this collection
+second line: Methods
+5 lines with method = ["GET", "POST", "PUT", "PATCH", "DELETE"]
+one line with method=GET, path=/status
+improve by adding top 10 most present IPs in collection nginx
+database logs
+"""
 from pymongo import MongoClient
 
-# Connect to MongoDB
-client = MongoClient("mongodb://localhost:27017/")  # Replace with your connection details
-db = client["logs"]  # Replace "logs" with your database name
-collection = db["nginx"]  # Replace "nginx" with your collection name
 
-# Use aggregation framework to find top 10 IPs
-pipeline = [
-    {"$group": {"_id": "$remote_addr", "count": {"$sum": 1}}},
-    {"$sort": {"count": -1}},
-    {"$limit": 10},
-]
+METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"]
+PIPE = [{"$group": {"_id": "$ip", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}, {"$limit": 10}]
 
-# Execute aggregation and fetch results
-top_ips = list(collection.aggregate(pipeline))
 
-# Print results
-print("Top 10 Most Frequent IPs:")
-for ip in top_ips:
-    print(f"\t- {ip['_id']}: {ip['count']} occurrences")
+def log_stats(mongo_collection, option=None):
+    """
+    Prototype: def log_stats(mongo_collection, option=None):
+    Provide some stats about Nginx logs stored in MongoDB
+    """
+    items = {}
+    if option:
+        value = mongo_collection.count_documents(
+            {"method": {"$regex": option}})
+        print(f"\tmethod {option}: {value}")
+        return
 
-# Close connection (optional)
-client.close()
+    result = mongo_collection.count_documents(items)
+    print(f"{result} logs")
+    print("Methods:")
+    for method in METHODS:
+        log_stats(nginx_collection, method)
+    status_check = mongo_collection.count_documents({"path": "/status"})
+    print(f"{status_check} status check")
+    print("IPs:")
+
+    for ip in mongo_collection.aggregate(PIPE):
+        print(f"\t{ip.get('_id')}: {ip.get('count')}")
+
+
+if __name__ == "__main__":
+    nginx_collection = MongoClient('mongodb://127.0.0.1:27017').logs.nginx
+    log_stats(nginx_collection)
