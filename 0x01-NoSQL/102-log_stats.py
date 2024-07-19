@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# !/usr/bin/env python3
 """
 Provide some stats about Nginx logs stored in MongoDB
 Database: logs, Collection: nginx, Display same as example
@@ -6,7 +6,7 @@ first line: x logs, x number of documents in this collection
 second line: Methods
 5 lines with method = ["GET", "POST", "PUT", "PATCH", "DELETE"]
 one line with method=GET, path=/status
-improve by adding top 10 most present IPs in collection nginx
+improved by adding top 10 most present IPs in collection nginx
 database logs
 """
 from pymongo import MongoClient
@@ -33,12 +33,14 @@ def log_stats(mongo_collection, option=None):
     print(f"{result} logs")
     print("Methods:")
     for method in METHODS:
-        log_stats(nginx_collection, method)
+        log_stats(mongo_collection, method)
     status_check = mongo_collection.count_documents({"path": "/status"})
     print(f"{status_check} status check")
-    print("IPs:")
 
-    for ip in mongo_collection.aggregate(PIPE):
+    print("IPs:")
+    # Use aggregation to find top 10 IPs
+    top_ips = list(mongo_collection.aggregate(PIPE))
+    for ip in top_ips:
         print(f"\t{ip.get('_id')}: {ip.get('count')}")
 
 
